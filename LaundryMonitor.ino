@@ -12,18 +12,19 @@ const int washerVoltageThreshold = 5; //number of volts that must be detected be
 const int dryerVoltageThreshold = 5;  //number of volts that must be detected before it is considered active
 
 const int washerAlertThreshold = 300; //number of seconds to wait for no current detection before sending alert
-const int dryerAlertThreshold = 5;    //number of seconds to wait for no current detection before sending alert
+const int dryerAlertThreshold = 10;    //number of seconds to wait for no current detection before sending alert
 
 const int washerStartWaitTime = 5;  //number of seconds to wait before considering the device to be on.  Sometimes temporary voltage is detected when the device is not on.
 const int dryerStartWaitTime = 5;   //number of seconds to wait before considering the device to be on.  Sometimes temporary voltage is detected when the device is not on.
 
 int washerAlertThresholdCounter = washerAlertThreshold;  //set Counter to threshold
 int dryerAlertThresholdCounter = dryerAlertThreshold;  //set counter to threshold
-int washerStartWaitTimeCounter = washerStartWaitTime;
-int dryerStartWaitTimeCounter = dryerStartWaitTime;
+int washerStartWaitTimeCounter = 0;
+int dryerStartWaitTimeCounter = 0;
 
 int adc_zero0;                                                   //autoadjusted relative digital zero
 int adc_zero1;
+
 
 
 bool washerAlertPrimed = false;
@@ -40,60 +41,113 @@ void setup()
   delay(1000);
   
    Spark.publish("DryerEvent", "Power On - Washer and dryer notification system is online!", 60, PRIVATE);
+   
+  //Set publishing variables
+  Particle.variable("washerAlertPrimed", washerAlertPrimed);
+  Particle.variable("dryerAlertPrimed", dryerAlertPrimed);
+ 
 }
 
 
 void loop(){
-  //Plug1 Washer
-  currentWasherReading = readCurrent(currentPin0,adc_zero0);
-  
-  if (currentWasherReading > washerVoltageThreshold){
-    //Current is Detected  check to see if it needs to be primed
-
-    if (washerAlertPrimed == false){
-        washerStartWaitTimeCounter = washerStartWaitTimeCounter - 1;
-        if (washerStartWaitTimeCounter == 0){
-            //Record that washer is running
-            washerAlertPrimed = true;
-            //Set timeout threshold
-            washerAlertThresholdCounter = washerAlertThreshold;  
+    //Plug1 Washer
+    //get current reading
+    currentWasherReading = readCurrent(currentPin0,adc_zero0);
+    
+    //Check Current Washer Reading
+    if (currentWasherReading >= washerVoltageThreshold){
+        //Check to see if the alert is already primed
+        if(washerAlertPrimed == true){
+            //Reset countdown timer
+            washerAlertThresholdCounter = washerAlertThreshold;
+        } else {
+            //Increment Prime Counter
+            washerStartWaitTimeCounter = washerStartWaitTimeCounter + 1;
+            //Check to see if washer is now primed
+            if(washerStartWaitTimeCounter >= washerStartWaitTime){
+                //set prime to true
+                washerAlertPrimed = true;
+            }
+        }//end check if alert is primed
+    } else {
+        //Check to see if alert is already primed
+        if(washerAlertPrimed == false){
+            //Reset Prime Counter
+            washerStartWaitTimeCounter = 0;
+        } else {
+            //check to see if countdown is > 0
+            if(washerAlertThresholdCounter > 0){
+                washerAlertThresholdCounter = washerAlertThresholdCounter - 1;
+            } else {
+                //Send push notification
+                //Serial.println("Send Push Notification"); 
+                Spark.publish("WasherEvent", "Washer Is Done!", 60, PRIVATE);
+                //Set prime to false
+                washerAlertPrimed = false;
+                washerAlertThresholdCounter = washerAlertThreshold;
+            }
+            
         }
-    }
-
-    
-  } else {
-     //Call washerAlertCheck 
-    washerAlertCheck();  
-    //reset wsherStartWaitTimeCounter
-    washerStartWaitTimeCounter = washerStartWaitTime;
-  }
-  
-  
-  
-  
-  //Plug2 Dryer
-  currentDryerReading  = readCurrent(currentPin1,adc_zero1);
-  
-  
-  if (currentDryerReading > dryerVoltageThreshold){
-    //Record that Washer is running
-    dryerAlertPrimed = true;
-    //Set timeout threshold
-    dryerAlertThresholdCounter = 5;
+    } //end check Current Washer Reading
     
     
-  } else {
-     //Call dryerAlertCheck 
-      dryerAlertCheck();  
-  }  
-
-//troublshoot
-
-
-  Serial.print("Plug1: ");     Serial.print(readCurrent(currentPin0,adc_zero0),0);  Serial.print(" Threshold1 "); Serial.print(washerAlertThresholdCounter);    Serial.print(" ")
-  //Serial.print(" Plug2: ");    Serial.print(readCurrent(currentPin1,adc_zero1),0);  Serial.print(" Threshold2 "); Serial.println(dryerAlertThresholdCounter); 
+    //Plug2 Dryer
+    //get current reading
+    currentDryerReading = readCurrent(currentPin1,adc_zero1);
+    //Check Current Dryer Reading
+    if (currentDryerReading >= dryerVoltageThreshold){
+        //Check to see if the alert is already primed
+        if(dryerAlertPrimed == true){
+            //Reset countdown timer
+            dryerAlertThresholdCounter = dryerAlertThreshold;
+        } else {
+            //Increment Prime Counter
+            dryerStartWaitTimeCounter = dryerStartWaitTimeCounter + 1;
+            //Check to see if dryer is now primed
+            if(dryerStartWaitTimeCounter >= dryerStartWaitTime){
+                //set prime to true
+                dryerAlertPrimed = true;
+            }
+        }//end check if alert is primed
+    } else {
+        //Check to see if alert is already primed
+        if(dryerAlertPrimed == false){
+            //Reset Prime Counter
+            dryerStartWaitTimeCounter = 0;
+        } else {
+            //check to see if countdown is > 0
+            if(dryerAlertThresholdCounter > 0){
+                dryerAlertThresholdCounter = dryerAlertThresholdCounter - 1;
+            } else {
+                //Send push notification
+                //Serial.println("Send Push Notification"); 
+                Spark.publish("DryerEvent", "Dryer Is Done!", 60, PRIVATE);
+                //Set prime to false
+                dryerAlertPrimed = false;
+                dryerAlertThresholdCounter = dryerAlertThreshold;
+            }
+            
+        }
+    } //end check Current Dryer Reading
+    
+    
+    
+    
 
   
+  //Serial.print("V="); Serial.print(currentWasherReading); 
+  //Serial.print(" Primed="); Serial.print(washerAlertPrimed); 
+  //Serial.print(" ACount="); Serial.print(washerAlertThresholdCounter); 
+  //Serial.print(" WCount="); Serial.print(washerStartWaitTimeCounter);
+  
+  //Serial.print(" V="); Serial.print(currentDryerReading); 
+  //Serial.print(" Primed="); Serial.print(dryerAlertPrimed); 
+  //Serial.print(" ACount="); Serial.print(dryerAlertThresholdCounter); 
+  //Serial.print(" WCount="); Serial.print(dryerStartWaitTimeCounter);
+  //Serial.println();
+  
+  
+  Particle.publish("Current Readings Washer: " + String(currentWasherReading) + " Dryer: " + String(currentDryerReading));
   
   //wait one second before checking current again
   delay(1000);
@@ -101,43 +155,8 @@ void loop(){
 
 
 
-void washerAlertCheck(){
-    if (washerAlertPrimed == true){
-        washerAlertThresholdCounter = washerAlertThresholdCounter - 1;
-    }
-    
-    if (washerAlertThreshold == 0){
-        //Send pushmon notification
-        Serial.println("Sending Washer Notification");
-        //Spark.publish("WasherEvent", "Washer Is Done!", 60, PRIVATE);
-        
-        washerAlertPrimed = false;
-        washerAlertThresholdCounter = washerAlertThreshold;
-        
-        
-    }
-    
-}
 
 
-void dryerAlertCheck(){
-    if (dryerAlertPrimed == true){
-        dryerAlertThresholdCounter = dryerAlertThresholdCounter - 1;
-    }
-    
-    if (dryerAlertThreshold == 0){
-        //Send pushmon notification
-        Serial.println("Sending Dryer Notification");
-        //Spark.publish("DryerEvent", "Dryer Is Done!", 60, PRIVATE);
-        
-        dryerAlertPrimed = false;
-        dryerAlertThresholdCounter = dryerAlertThreshold;
-    }
-    
-}
-
-
-#This function was obtained from elik745i on the Arduino forum: https://forum.arduino.cc/index.php?topic=179541.msg1423700#msg1423700
 int determineVQ(int PIN) {
   Serial.print("estimating avg. quiscent voltage:");
   long VQ = 0;
