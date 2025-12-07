@@ -4,7 +4,7 @@ A Particle Photon-based system that monitors washer and dryer status using curre
 
 ## What It Does
 
-Monitors electrical current on your washer and dryer to detect when they're running and when they finish. Sends real-time status updates to Home Assistant so you can see at a glance whether your laundry is done.
+Monitors electrical current on your washer and dryer to detect when they're running and when they finish. Sends real-time status updates to Home Assistant so you can see at a glance whether your laundry is done. The original logic to detect current was obrained from https://forum.arduino.cc/t/monitoring-ac-current-with-arduino-and-acs712/175297
 
 ## Features
 
@@ -42,10 +42,10 @@ const int dryerAlertThreshold = 10;    // Seconds to wait before "done" alert
 
 ### MQTT Broker
 
-Update the IP address if your MQTT broker is different:
+Update the IP address to address your MQTT broker:
 
 ```cpp
-MQTT client("192.168.2.162", 1883, callback);
+MQTT client("192.168.x.x", 1883, callback);
 ```
 
 ### Home Assistant Configuration
