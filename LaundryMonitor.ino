@@ -1,7 +1,7 @@
 #include "math.h"
 #include "MQTT.h"
 
-MQTT client("192.168.2.162", 1883, callback);
+MQTT client("192.168.x.x", 1883, callback);
 
 const int currentPin0 = A0;
 const int currentPin1 = A1;
@@ -29,6 +29,7 @@ int adc_zero0;                                                   //autoadjusted 
 int adc_zero1;
 
 
+
 bool washerAlertPrimed = false;
 bool dryerAlertPrimed = false;
 
@@ -50,11 +51,16 @@ void setup()
   // Connect to MQTT broker
   client.connect("laundrywatch");
   
-  Spark.publish("DryerEvent", "Power On - Washer and dryer notification system is online!", 60, PRIVATE);
+   Spark.publish("DryerEvent", "Power On - Washer and dryer notification system is online!", 60, PRIVATE);
+   
+  //Set publishing variables
+  Particle.variable("washerAlertPrimed", washerAlertPrimed);
+  Particle.variable("dryerAlertPrimed", dryerAlertPrimed);
   
   // Publish initial state
   client.publish("homeassistant/sensor/washer/state", "idle");
   client.publish("homeassistant/sensor/dryer/state", "idle");
+ 
 }
 
 
@@ -68,6 +74,7 @@ void loop(){
     //Plug1 Washer
     //get current reading
     currentWasherReading = readCurrent(currentPin0,adc_zero0);
+    
     //Check Current Washer Reading
     if (currentWasherReading >= washerVoltageThreshold){
         //Check to see if the alert is already primed
@@ -164,6 +171,9 @@ void loop(){
   //Serial.print(" WCount="); Serial.print(dryerStartWaitTimeCounter);
   //Serial.println();
   
+  
+  Particle.publish("Current Readings Washer: " + String(currentWasherReading) + " Dryer: " + String(currentDryerReading));
+  
   //wait one second before checking current again
   delay(1000);
 } //end of main loop
@@ -204,4 +214,3 @@ float readCurrent(int PIN, int adc_zeroed)
   return rms;
   //Serial.println(rms);
 }
-
