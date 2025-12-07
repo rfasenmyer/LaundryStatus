@@ -1,4 +1,7 @@
 #include "math.h"
+#include "MQTT.h"
+
+MQTT client("192.168.2.162", 1883, callback);
 
 const int currentPin0 = A0;
 const int currentPin1 = A1;
@@ -26,13 +29,17 @@ int adc_zero0;                                                   //autoadjusted 
 int adc_zero1;
 
 
-
 bool washerAlertPrimed = false;
 bool dryerAlertPrimed = false;
 
 
 float currentWasherReading;
 float currentDryerReading;
+
+void callback(char* topic, byte* payload, unsigned int length) {
+    // Not used for publishing only
+}
+
 void setup()
 {
   Serial.begin(9600);
@@ -40,20 +47,27 @@ void setup()
    adc_zero1 = determineVQ(currentPin1); //Quiscent output voltage - the average voltage ACS712 shows with no load on plug 2
   delay(1000);
   
-   Spark.publish("DryerEvent", "Power On - Washer and dryer notification system is online!", 60, PRIVATE);
-   
-  //Set publishing variables
-  Particle.variable("washerAlertPrimed", washerAlertPrimed);
-  Particle.variable("dryerAlertPrimed", dryerAlertPrimed);
- 
+  // Connect to MQTT broker
+  client.connect("laundrywatch");
+  
+  Spark.publish("DryerEvent", "Power On - Washer and dryer notification system is online!", 60, PRIVATE);
+  
+  // Publish initial state
+  client.publish("homeassistant/sensor/washer/state", "idle");
+  client.publish("homeassistant/sensor/dryer/state", "idle");
 }
 
 
 void loop(){
+    // Keep MQTT connection alive
+    if (!client.isConnected()) {
+        client.connect("laundrywatch");
+    }
+    client.loop();
+    
     //Plug1 Washer
     //get current reading
     currentWasherReading = readCurrent(currentPin0,adc_zero0);
-    
     //Check Current Washer Reading
     if (currentWasherReading >= washerVoltageThreshold){
         //Check to see if the alert is already primed
@@ -67,6 +81,7 @@ void loop(){
             if(washerStartWaitTimeCounter >= washerStartWaitTime){
                 //set prime to true
                 washerAlertPrimed = true;
+                client.publish("homeassistant/sensor/washer/state", "running");
             }
         }//end check if alert is primed
     } else {
@@ -85,6 +100,7 @@ void loop(){
                 //Set prime to false
                 washerAlertPrimed = false;
                 washerAlertThresholdCounter = washerAlertThreshold;
+                client.publish("homeassistant/sensor/washer/state", "idle");
             }
             
         }
@@ -107,6 +123,7 @@ void loop(){
             if(dryerStartWaitTimeCounter >= dryerStartWaitTime){
                 //set prime to true
                 dryerAlertPrimed = true;
+                client.publish("homeassistant/sensor/dryer/state", "running");
             }
         }//end check if alert is primed
     } else {
@@ -125,6 +142,7 @@ void loop(){
                 //Set prime to false
                 dryerAlertPrimed = false;
                 dryerAlertThresholdCounter = dryerAlertThreshold;
+                client.publish("homeassistant/sensor/dryer/state", "idle");
             }
             
         }
@@ -145,9 +163,6 @@ void loop(){
   //Serial.print(" ACount="); Serial.print(dryerAlertThresholdCounter); 
   //Serial.print(" WCount="); Serial.print(dryerStartWaitTimeCounter);
   //Serial.println();
-  
-  
-  Particle.publish("Current Readings Washer: " + String(currentWasherReading) + " Dryer: " + String(currentDryerReading));
   
   //wait one second before checking current again
   delay(1000);
@@ -189,3 +204,4 @@ float readCurrent(int PIN, int adc_zeroed)
   return rms;
   //Serial.println(rms);
 }
+
