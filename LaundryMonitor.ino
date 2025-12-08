@@ -172,7 +172,7 @@ void loop(){
   //Serial.println();
   
   
-  Particle.publish("Current Readings Washer: " + String(currentWasherReading) + " Dryer: " + String(currentDryerReading));
+  //Particle.publish("Current Readings Washer: " + String(currentWasherReading) + " Dryer: " + String(currentDryerReading));
   
   //wait one second before checking current again
   delay(1000);
